@@ -223,7 +223,6 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
     console.log(`Successfully got recommendations from ${modelName}`);
     
     // Validate and correct calculations based on AQI
-    const currentAQI = aqiData.aqi || 0;
     jsonData = validateAndCorrectRecommendations(jsonData, currentAQI);
     
     // Ensure rupee symbol is present in all money fields
