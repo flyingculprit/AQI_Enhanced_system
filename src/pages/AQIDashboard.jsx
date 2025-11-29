@@ -133,13 +133,13 @@ function AQIDashboard() {
   };
 
   const getAQIColor = (aqi) => {
-    if (!aqi) return 'text-gray-500';
-    if (aqi <= 50) return 'text-green-600';
-    if (aqi <= 100) return 'text-yellow-600';
-    if (aqi <= 150) return 'text-orange-600';
-    if (aqi <= 200) return 'text-red-600';
-    if (aqi <= 300) return 'text-purple-600';
-    return 'text-red-800';
+    if (!aqi) return 'text-gray-400';
+    if (aqi <= 50) return 'text-green-400';
+    if (aqi <= 100) return 'text-yellow-400';
+    if (aqi <= 150) return 'text-orange-400';
+    if (aqi <= 200) return 'text-red-400';
+    if (aqi <= 300) return 'text-purple-400';
+    return 'text-red-500';
   };
 
   const getAQILabel = (aqi) => {
@@ -173,15 +173,15 @@ function AQIDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 py-8">
       <div className="container mx-auto px-4">
-        <h1 className="text-4xl font-bold text-gray-800 text-center mb-8">
+        <h1 className="text-4xl font-bold text-white text-center mb-8">
           Air Quality Dashboard
         </h1>
 
         {/* Search Section */}
         <div className="max-w-2xl mx-auto mb-8">
-          <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
             <div className="flex gap-4 items-center">
               <input
                 type="text"
@@ -189,12 +189,12 @@ function AQIDashboard() {
                 onChange={(e) => setCity(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder="Enter city name (e.g., beijing, london, delhi)"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
               <button
                 onClick={handleSearch}
                 disabled={loading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? 'Loading...' : 'Search'}
               </button>
@@ -209,7 +209,7 @@ function AQIDashboard() {
                   className="sr-only"
                 />
                 <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  enhancedPrediction ? 'bg-green-600' : 'bg-gray-300'
+                  enhancedPrediction ? 'bg-green-600' : 'bg-gray-600'
                 }`}>
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -217,11 +217,11 @@ function AQIDashboard() {
                     }`}
                   />
                 </div>
-                <span className="ml-3 text-sm font-medium text-gray-700">
+                <span className="ml-3 text-sm font-medium text-gray-300">
                   🤖 Enhanced Prediction
                 </span>
               </label>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-400">
                 (AI-powered tree planting recommendations)
               </span>
             </div>
@@ -238,8 +238,8 @@ function AQIDashboard() {
         {data && !loading && (
           <div className="space-y-6">
             {/* Main AQI Card */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+              <h2 className="text-2xl font-bold text-white mb-4">
                 {data.city}
               </h2>
               <div className="flex items-center gap-4">
@@ -247,10 +247,10 @@ function AQIDashboard() {
                   {data.aqi || 'N/A'}
                 </div>
                 <div>
-                  <p className="text-xl font-semibold text-gray-700">
+                  <p className="text-xl font-semibold text-gray-200">
                     {getAQILabel(data.aqi)}
                   </p>
-                  <p className="text-gray-500">Air Quality Index</p>
+                  <p className="text-gray-400">Air Quality Index</p>
                 </div>
               </div>
             </div>
@@ -258,59 +258,59 @@ function AQIDashboard() {
             {/* Data Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Pollutants Card */}
-              <div className="bg-white rounded-lg shadow-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4">
                   Pollutants
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">PM2.5:</span>
-                    <span className="font-semibold">{data.pm25 || 'N/A'} μg/m³</span>
+                    <span className="text-gray-400">PM2.5:</span>
+                    <span className="font-semibold text-gray-200">{data.pm25 || 'N/A'} μg/m³</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">PM10:</span>
-                    <span className="font-semibold">{data.pm10 || 'N/A'} μg/m³</span>
+                    <span className="text-gray-400">PM10:</span>
+                    <span className="font-semibold text-gray-200">{data.pm10 || 'N/A'} μg/m³</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">CO:</span>
-                    <span className="font-semibold">{data.co || 'N/A'} μg/m³</span>
+                    <span className="text-gray-400">CO:</span>
+                    <span className="font-semibold text-gray-200">{data.co || 'N/A'} μg/m³</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">NO₂:</span>
-                    <span className="font-semibold">{data.no2 || 'N/A'} μg/m³</span>
+                    <span className="text-gray-400">NO₂:</span>
+                    <span className="font-semibold text-gray-200">{data.no2 || 'N/A'} μg/m³</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">SO₂:</span>
-                    <span className="font-semibold">{data.so2 || 'N/A'} μg/m³</span>
+                    <span className="text-gray-400">SO₂:</span>
+                    <span className="font-semibold text-gray-200">{data.so2 || 'N/A'} μg/m³</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">O₃:</span>
-                    <span className="font-semibold">{data.o3 || 'N/A'} μg/m³</span>
+                    <span className="text-gray-400">O₃:</span>
+                    <span className="font-semibold text-gray-200">{data.o3 || 'N/A'} μg/m³</span>
                   </div>
                 </div>
               </div>
 
               {/* Weather Card */}
-              <div className="bg-white rounded-lg shadow-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4">
                   Weather
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Temperature:</span>
-                    <span className="font-semibold">
+                    <span className="text-gray-400">Temperature:</span>
+                    <span className="font-semibold text-gray-200">
                       {data.temp !== null ? `${data.temp}°C` : 'N/A'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Humidity:</span>
-                    <span className="font-semibold">
+                    <span className="text-gray-400">Humidity:</span>
+                    <span className="font-semibold text-gray-200">
                       {data.humidity !== null ? `${data.humidity}%` : 'N/A'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Wind Speed:</span>
-                    <span className="font-semibold">
+                    <span className="text-gray-400">Wind Speed:</span>
+                    <span className="font-semibold text-gray-200">
                       {data.wind !== null ? `${data.wind} m/s` : 'N/A'}
                     </span>
                   </div>
@@ -318,19 +318,19 @@ function AQIDashboard() {
               </div>
 
               {/* Forecast Card */}
-              <div className="bg-white rounded-lg shadow-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4">
                   Forecast
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-gray-600 mb-2">Next Hour AQI:</p>
+                    <p className="text-gray-400 mb-2">Next Hour AQI:</p>
                     <p className={`text-3xl font-bold ${getAQIColor(data.forecast_next_hour)}`}>
                       {data.forecast_next_hour !== null
                         ? data.forecast_next_hour
                         : 'N/A'}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-400 mt-1">
                       {data.forecast_next_hour !== null
                         ? getAQILabel(data.forecast_next_hour)
                         : 'No forecast available'}
@@ -342,16 +342,16 @@ function AQIDashboard() {
 
             {/* Map Section */}
             {data.coordinates && data.coordinates.lat && data.coordinates.lon && (
-              <div className="bg-white rounded-lg shadow-lg p-4">
+              <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">
+                  <h3 className="text-lg font-semibold text-white">
                     Air Quality Heatmap
                   </h3>
                   {loadingStations && (
-                    <span className="text-sm text-gray-500">Loading stations...</span>
+                    <span className="text-sm text-gray-400">Loading stations...</span>
                   )}
                   {!loadingStations && stations.length > 0 && (
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-300">
                       {stations.length} station{stations.length !== 1 ? 's' : ''} found
                     </span>
                   )}

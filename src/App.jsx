@@ -15,16 +15,16 @@ function Navigation() {
   };
 
   return (
-    <nav className="bg-white shadow-md">
+    <nav className="bg-gray-800 shadow-md border-b border-gray-700">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold text-gray-800">
+          <Link to="/" className="text-2xl font-bold text-white">
             AQI Dashboard
           </Link>
           <div className="space-x-4 flex items-center">
             <Link
               to="/"
-              className="text-gray-600 hover:text-gray-800 transition-colors"
+              className="text-gray-300 hover:text-blue-400 transition-colors"
             >
               Home
             </Link>
@@ -32,16 +32,16 @@ function Navigation() {
               <>
                 <Link
                   to="/aqi"
-                  className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                  className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
                 >
                   Dashboard
                 </Link>
-                <span className="text-gray-600">
+                <span className="text-gray-300">
                   {user.email}
                 </span>
                 <button
                   onClick={handleSignOut}
-                  className="text-red-600 hover:text-red-800 font-medium transition-colors"
+                  className="text-red-400 hover:text-red-300 font-medium transition-colors"
                 >
                   Sign Out
                 </button>
@@ -50,13 +50,13 @@ function Navigation() {
               <>
                 <Link
                   to="/login"
-                  className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                  className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
                 >
                   Login
                 </Link>
                 <Link
                   to="/signup"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
                 >
                   Sign Up
                 </Link>
@@ -71,7 +71,7 @@ function Navigation() {
 
 function AppContent() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
       <Navigation />
       <Routes>
         <Route
@@ -79,16 +79,16 @@ function AppContent() {
           element={
             <div className="container mx-auto px-4 py-16">
               <div className="max-w-2xl mx-auto text-center">
-                <h1 className="text-4xl font-bold text-gray-800 mb-8">
+                <h1 className="text-4xl font-bold text-white mb-8">
                   Welcome to AQI App
                 </h1>
-                <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-                  <p className="text-gray-600 mb-6">
+                <div className="bg-gray-800 rounded-lg shadow-lg p-8 mb-8 border border-gray-700">
+                  <p className="text-gray-300 mb-6">
                     Monitor air quality and weather data for cities around the world.
                   </p>
                   <Link
                     to="/aqi"
-                    className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
                   >
                     Go to Dashboard
                   </Link>

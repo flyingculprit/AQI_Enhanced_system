@@ -74,15 +74,16 @@ function TreeRecommendations({ aqiData, enabled }) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">
-          🤖 Enhanced Prediction
+    <div className="bg-gray-800 rounded-xl shadow-xl p-6 mt-6 border border-gray-700">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-700">
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <span className="text-blue-400">🤖</span>
+          Enhanced Prediction
         </h2>
         <button
           onClick={fetchRecommendations}
           disabled={loading}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors text-sm"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-sm font-medium"
         >
           {loading ? 'Loading...' : 'Refresh'}
         </button>
@@ -94,41 +95,42 @@ function TreeRecommendations({ aqiData, enabled }) {
       {recommendations && !loading && (
         <div className="space-y-6">
           {/* Summary */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-gray-700">{recommendations.summary}</p>
+          <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-5">
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Summary</h3>
+            <p className="text-gray-200 leading-relaxed">{recommendations.summary}</p>
           </div>
 
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Number of Trees */}
-            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">🌲</span>
-                <h3 className="font-semibold text-gray-800">Trees Needed</h3>
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600 hover:border-blue-500/50 transition-colors">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">🌲</span>
+                <h3 className="font-medium text-gray-400 text-xs uppercase tracking-wide">Trees Needed</h3>
               </div>
-              <p className="text-3xl font-bold text-green-700">
+              <p className="text-3xl font-bold text-blue-400">
                 {recommendations.recommendations?.numberOfTrees || 'N/A'}
               </p>
             </div>
 
             {/* Investment */}
-            <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">💰</span>
-                <h3 className="font-semibold text-gray-800">Investment</h3>
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600 hover:border-blue-500/50 transition-colors">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">💰</span>
+                <h3 className="font-medium text-gray-400 text-xs uppercase tracking-wide">Investment</h3>
               </div>
-              <p className="text-3xl font-bold text-yellow-700">
+              <p className="text-3xl font-bold text-blue-400">
                 {formatRupees(recommendations.recommendations?.investmentAmount)}
               </p>
             </div>
 
             {/* ROI Timeframe */}
-            <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">📈</span>
-                <h3 className="font-semibold text-gray-800">ROI Timeframe</h3>
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600 hover:border-blue-500/50 transition-colors">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">📈</span>
+                <h3 className="font-medium text-gray-400 text-xs uppercase tracking-wide">ROI Timeframe</h3>
               </div>
-              <p className="text-2xl font-bold text-purple-700">
+              <p className="text-2xl font-bold text-blue-400">
                 {recommendations.recommendations?.roi?.timeframe || 'N/A'}
               </p>
             </div>
@@ -136,15 +138,15 @@ function TreeRecommendations({ aqiData, enabled }) {
 
           {/* Tree Types */}
           {recommendations.recommendations?.treeTypes && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600">
+              <h3 className="font-semibold text-white mb-4 text-sm uppercase tracking-wide">
                 Recommended Tree Species
               </h3>
               <div className="flex flex-wrap gap-2">
                 {recommendations.recommendations.treeTypes.map((tree, index) => (
                   <span
                     key={index}
-                    className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium"
+                    className="px-3 py-1.5 bg-blue-600/20 text-blue-300 border border-blue-500/30 rounded-lg text-sm font-medium"
                   >
                     {tree}
                   </span>
@@ -155,26 +157,26 @@ function TreeRecommendations({ aqiData, enabled }) {
 
           {/* Carbon Analysis */}
           {recommendations.recommendations?.carbonAnalysis && (
-            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-5 border border-green-200">
-              <h3 className="font-semibold text-gray-800 mb-4 text-lg">
-                🌍 Carbon Analysis
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600">
+              <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wide flex items-center gap-2">
+                <span>🌍</span> Carbon Analysis
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Annual CO₂ Sequestration</p>
-                  <p className="text-xl font-bold text-green-700">
-                    {recommendations.recommendations.carbonAnalysis.annualCarbonSequestration} tons/year
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600">
+                  <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Annual CO₂ Sequestration</p>
+                  <p className="text-xl font-bold text-blue-400">
+                    {recommendations.recommendations.carbonAnalysis.annualCarbonSequestration} <span className="text-sm text-gray-400 font-normal">tons/year</span>
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Lifetime CO₂ Sequestration</p>
-                  <p className="text-xl font-bold text-blue-700">
-                    {recommendations.recommendations.carbonAnalysis.lifetimeCarbonSequestration} tons
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600">
+                  <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Lifetime CO₂ Sequestration</p>
+                  <p className="text-xl font-bold text-blue-400">
+                    {recommendations.recommendations.carbonAnalysis.lifetimeCarbonSequestration} <span className="text-sm text-gray-400 font-normal">tons</span>
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Air Pollution Reduction</p>
-                  <p className="text-xl font-bold text-purple-700">
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600">
+                  <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">Air Pollution Reduction</p>
+                  <p className="text-xl font-bold text-blue-400">
                     {recommendations.recommendations.carbonAnalysis.airPollutionReduction}
                   </p>
                 </div>
@@ -184,62 +186,62 @@ function TreeRecommendations({ aqiData, enabled }) {
 
           {/* Before/After Comparison */}
           {recommendations.recommendations?.comparison && (
-            <div className="bg-gradient-to-r from-red-50 to-green-50 rounded-lg p-5 border-2 border-gray-200">
-              <h3 className="font-semibold text-gray-800 mb-4 text-lg">
-                📊 Before & After Comparison
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600">
+              <h3 className="font-semibold text-white mb-5 text-sm uppercase tracking-wide flex items-center gap-2">
+                <span>📊</span> Before & After Comparison
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                 {/* Before */}
-                <div className="bg-white rounded-lg p-4 border-2 border-red-200">
-                  <h4 className="font-semibold text-red-700 mb-3">Before Planting</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">AQI:</span>
-                      <span className="font-bold text-red-600">
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600">
+                  <h4 className="font-semibold text-gray-300 mb-4 text-sm uppercase tracking-wide">Before Planting</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                      <span className="text-gray-400 text-sm">AQI</span>
+                      <span className="font-bold text-gray-300 text-lg">
                         {recommendations.recommendations.comparison.before.aqi}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">PM2.5:</span>
-                      <span className="font-semibold">
-                        {recommendations.recommendations.comparison.before.pm25} μg/m³
+                    <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                      <span className="text-gray-400 text-sm">PM2.5</span>
+                      <span className="font-semibold text-gray-200">
+                        {recommendations.recommendations.comparison.before.pm25} <span className="text-xs text-gray-500">μg/m³</span>
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">PM10:</span>
-                      <span className="font-semibold">
-                        {recommendations.recommendations.comparison.before.pm10} μg/m³
+                    <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                      <span className="text-gray-400 text-sm">PM10</span>
+                      <span className="font-semibold text-gray-200">
+                        {recommendations.recommendations.comparison.before.pm10} <span className="text-xs text-gray-500">μg/m³</span>
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-xs text-gray-400 mt-3 leading-relaxed">
                       {recommendations.recommendations.comparison.before.description}
                     </p>
                   </div>
                 </div>
 
                 {/* After */}
-                <div className="bg-white rounded-lg p-4 border-2 border-green-200">
-                  <h4 className="font-semibold text-green-700 mb-3">After 5 Years</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">AQI:</span>
-                      <span className="font-bold text-green-600">
+                <div className="bg-gray-800/50 rounded-lg p-4 border border-blue-500/50">
+                  <h4 className="font-semibold text-blue-400 mb-4 text-sm uppercase tracking-wide">After 5 Years</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                      <span className="text-gray-400 text-sm">AQI</span>
+                      <span className="font-bold text-blue-400 text-lg">
                         {recommendations.recommendations.comparison.after.aqi}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">PM2.5:</span>
-                      <span className="font-semibold text-green-600">
-                        {recommendations.recommendations.comparison.after.pm25}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                      <span className="text-gray-400 text-sm">PM2.5</span>
+                      <span className="font-semibold text-blue-400">
+                        {recommendations.recommendations.comparison.after.pm25} <span className="text-xs text-gray-500">μg/m³</span>
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">PM10:</span>
-                      <span className="font-semibold text-green-600">
-                        {recommendations.recommendations.comparison.after.pm10}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                      <span className="text-gray-400 text-sm">PM10</span>
+                      <span className="font-semibold text-blue-400">
+                        {recommendations.recommendations.comparison.after.pm10} <span className="text-xs text-gray-500">μg/m³</span>
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-xs text-gray-400 mt-3 leading-relaxed">
                       {recommendations.recommendations.comparison.after.description}
                     </p>
                   </div>
@@ -247,10 +249,10 @@ function TreeRecommendations({ aqiData, enabled }) {
               </div>
               
               {/* Improvement Percentage */}
-              <div className="mt-4 text-center">
-                <div className="inline-block bg-green-100 px-6 py-3 rounded-lg">
-                  <span className="text-sm text-gray-600 mr-2">Expected Improvement:</span>
-                  <span className="text-2xl font-bold text-green-700">
+              <div className="text-center pt-4 border-t border-gray-600">
+                <div className="inline-block bg-blue-600/20 border border-blue-500/30 px-6 py-3 rounded-lg">
+                  <span className="text-xs text-gray-400 mr-2 uppercase tracking-wide">Expected Improvement</span>
+                  <span className="text-2xl font-bold text-blue-400">
                     {recommendations.recommendations.comparison.improvement}
                   </span>
                 </div>
@@ -260,9 +262,11 @@ function TreeRecommendations({ aqiData, enabled }) {
 
           {/* ROI Benefits */}
           {recommendations.recommendations?.roi && (
-            <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
-              <h3 className="font-semibold text-gray-800 mb-2">💡 ROI Benefits</h3>
-              <p className="text-gray-700">
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600">
+              <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide flex items-center gap-2">
+                <span>💡</span> ROI Benefits
+              </h3>
+              <p className="text-gray-200 leading-relaxed">
                 {recommendations.recommendations.roi.benefits}
               </p>
             </div>
@@ -270,28 +274,28 @@ function TreeRecommendations({ aqiData, enabled }) {
 
           {/* Implementation Plan */}
           {recommendations.recommendations?.implementation && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">
-                📅 Implementation Plan
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600">
+              <h3 className="font-semibold text-white mb-4 text-sm uppercase tracking-wide flex items-center gap-2">
+                <span>📅</span> Implementation Plan
               </h3>
-              <div className="space-y-2 mb-3">
+              <div className="space-y-3 mb-4">
                 {recommendations.recommendations.implementation.phases?.map((phase, index) => (
-                  <div key={index} className="flex items-start gap-2">
-                    <span className="text-blue-600 font-bold">{index + 1}.</span>
-                    <p className="text-gray-700">{phase}</p>
+                  <div key={index} className="flex items-start gap-3 bg-gray-800/50 rounded-lg p-3 border border-gray-600">
+                    <span className="text-blue-400 font-bold text-lg min-w-[24px]">{index + 1}.</span>
+                    <p className="text-gray-200 text-sm leading-relaxed">{phase}</p>
                   </div>
                 ))}
               </div>
-              <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                <div>
-                  <span className="text-sm text-gray-600">Timeline: </span>
-                  <span className="font-semibold">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-4 border-t border-gray-600">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 uppercase tracking-wide">Timeline</span>
+                  <span className="font-semibold text-gray-200">
                     {recommendations.recommendations.implementation.timeline}
                   </span>
                 </div>
-                <div>
-                  <span className="text-sm text-gray-600">Annual Maintenance: </span>
-                  <span className="font-semibold text-green-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 uppercase tracking-wide">Annual Maintenance</span>
+                  <span className="font-semibold text-blue-400">
                     {formatRupees(recommendations.recommendations.implementation.maintenance)}
                   </span>
                 </div>

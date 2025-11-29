@@ -57,8 +57,49 @@
   background-color: #e5e7eb !important;
 }
 
+
 /* Fix for map tiles not loading */
 .leaflet-tile {
   pointer-events: auto !important;
+}
+
+body {
+  @apply bg-gray-900 text-gray-100;
+  background-color: #111827;
+  color: #f3f4f6;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Dark theme for Leaflet map container */
+#map-container .leaflet-container {
+  background-color: #1f2937 !important;
+}
+
+/* Dark theme for Leaflet popups */
+.leaflet-popup-content-wrapper {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+  border-radius: 8px !important;
+}
+
+.leaflet-popup-content {
+  color: #f3f4f6 !important;
+}
+
+.leaflet-popup-tip {
+  background-color: #1f2937 !important;
+}
+
+.leaflet-popup-close-button {
+  color: #9ca3af !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
 }
 

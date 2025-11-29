@@ -55,12 +55,14 @@ export async function getTreePlantingRecommendations(aqiData) {
  */
 async function getTreePlantingRecommendationsWithModel(ai, aqiData, modelName) {
   try {
+    const currentAQI = aqiData.aqi || 0;
+    
     // Prepare the prompt with AQI data
     const prompt = `You are an environmental expert. Based on the following air quality data for ${aqiData.city}, provide a comprehensive tree planting recommendation to improve air quality.
 
 Current Air Quality Data:
 - City: ${aqiData.city}
-- Current AQI: ${aqiData.aqi || 'N/A'}
+- Current AQI: ${currentAQI}
 - PM2.5: ${aqiData.pm25 || 'N/A'} μg/m³
 - PM10: ${aqiData.pm10 || 'N/A'} μg/m³
 - CO: ${aqiData.co || 'N/A'} μg/m³
@@ -68,8 +70,56 @@ Current Air Quality Data:
 - SO2: ${aqiData.so2 || 'N/A'} μg/m³
 - O3: ${aqiData.o3 || 'N/A'} μg/m³
 
-IMPORTANT: All costs must be in Indian Rupees (INR/₹) only. Do not use USD or any other currency.
-CRITICAL: Always include the rupee symbol (₹) before the amount. Format example: "₹50,00,000" or "₹5,00,000".
+CRITICAL CALCULATION RULES - YOU MUST FOLLOW THESE EXACTLY:
+1. NUMBER OF TREES: Must be calculated based on AQI value using this formula:
+   - For AQI 0-50 (Good): Trees = AQI × 50 to 100
+   - For AQI 51-100 (Moderate): Trees = AQI × 100 to 150
+   - For AQI 101-150 (Unhealthy for Sensitive): Trees = AQI × 150 to 200
+   - For AQI 151-200 (Unhealthy): Trees = AQI × 200 to 250
+   - For AQI 201-300 (Very Unhealthy): Trees = AQI × 250 to 300
+   - For AQI 300+ (Hazardous): Trees = AQI × 300 to 350
+   
+   EXAMPLE: If AQI is 300, trees should be between 75,000 to 105,000 (300 × 250 to 300 × 350)
+   EXAMPLE: If AQI is 60, trees should be between 6,000 to 9,000 (60 × 100 to 60 × 150)
+   
+   DO NOT use the same number of trees for different AQI values. Higher AQI MUST mean more trees.
+
+2. INVESTMENT AMOUNT: Must be calculated as: numberOfTrees × costPerTree
+   - Cost per tree in India: ₹3,000 to ₹5,000 (average ₹4,000)
+   - Formula: investmentAmount = numberOfTrees × 4000
+   - EXAMPLE: If 10,000 trees, investment = 10,000 × 4,000 = ₹4,00,00,000
+   - EXAMPLE: If 7,500 trees, investment = 7,500 × 4,000 = ₹3,00,00,000
+   
+   DO NOT fabricate investment amounts. They MUST be calculated from tree count.
+
+3. CONSISTENCY CHECK: 
+   - Higher AQI MUST result in higher number of trees
+   - Higher number of trees MUST result in higher investment
+   - If AQI is 300, trees MUST be significantly more than if AQI is 60
+   - All calculations must be proportional and logical
+
+4. CARBON ANALYSIS:
+   - Annual CO2 per tree: 0.02 to 0.03 tons/year
+   - Formula: annualCarbonSequestration = numberOfTrees × 0.025
+   - Lifetime CO2 per tree: 0.4 to 0.6 tons (over 20-30 years)
+   - Formula: lifetimeCarbonSequestration = numberOfTrees × 0.5
+   - Air pollution reduction: 20-35% over 5 years (higher for more trees)
+
+5. PROJECTED AQI AFTER 5 YEARS:
+   - Calculate based on tree count and current AQI
+   - Formula: projectedAQI = currentAQI × (1 - (numberOfTrees / 100000) × 0.3)
+   - Minimum improvement: 15-30% reduction
+   - Higher tree count = better improvement
+
+STRICT REQUIREMENTS:
+- DO NOT hallucinate or fabricate numbers
+- DO NOT use the same values for different AQI levels
+- ALL numbers MUST be calculated from the provided AQI value
+- Investment MUST be proportional to tree count
+- Higher AQI MUST mean more trees and higher investment
+- Return ONLY valid JSON, no markdown, no code blocks, no explanations
+
+IMPORTANT: All costs must be in Indian Rupees (INR/₹) only. Format: "₹50,00,000" (Indian numbering system).
 
 Please provide a detailed analysis in the following JSON format (return ONLY valid JSON, no markdown, no code blocks):
 {
@@ -89,18 +139,18 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
     },
     "comparison": {
       "before": {
-        "aqi": ${aqiData.aqi || 0},
+        "aqi": ${currentAQI},
         "pm25": ${aqiData.pm25 || 0},
         "pm10": ${aqiData.pm10 || 0},
         "description": "Current air quality status"
       },
       "after": {
-        "aqi": "Projected AQI after 5 years of tree planting",
-        "pm25": "Projected PM2.5 reduction percentage",
-        "pm10": "Projected PM10 reduction percentage",
-        "description": "Expected air quality improvement"
+        "aqi": <CALCULATE: projected AQI as number, must be lower than ${currentAQI}>,
+        "pm25": "<CALCULATE: percentage reduction like '25%' or '30%'>",
+        "pm10": "<CALCULATE: percentage reduction like '25%' or '30%'>",
+        "description": "Expected air quality improvement after 5 years"
       },
-      "improvement": "Percentage improvement expected"
+      "improvement": "<CALCULATE: percentage like '25%' or '30%' based on tree count>"
     },
     "implementation": {
       "phases": ["Phase 1 description", "Phase 2 description", "Phase 3 description"],
@@ -172,6 +222,10 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
 
     console.log(`Successfully got recommendations from ${modelName}`);
     
+    // Validate and correct calculations based on AQI
+    const currentAQI = aqiData.aqi || 0;
+    jsonData = validateAndCorrectRecommendations(jsonData, currentAQI);
+    
     // Ensure rupee symbol is present in all money fields
     if (jsonData.recommendations) {
       if (jsonData.recommendations.investmentAmount) {
@@ -203,6 +257,100 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
 }
 
 /**
+ * Validate and correct recommendations to ensure they follow calculation rules
+ */
+function validateAndCorrectRecommendations(data, currentAQI) {
+  if (!data.recommendations) return data;
+  
+  // Calculate expected number of trees based on AQI
+  let expectedMinTrees, expectedMaxTrees;
+  if (currentAQI <= 50) {
+    expectedMinTrees = currentAQI * 50;
+    expectedMaxTrees = currentAQI * 100;
+  } else if (currentAQI <= 100) {
+    expectedMinTrees = currentAQI * 100;
+    expectedMaxTrees = currentAQI * 150;
+  } else if (currentAQI <= 150) {
+    expectedMinTrees = currentAQI * 150;
+    expectedMaxTrees = currentAQI * 200;
+  } else if (currentAQI <= 200) {
+    expectedMinTrees = currentAQI * 200;
+    expectedMaxTrees = currentAQI * 250;
+  } else if (currentAQI <= 300) {
+    expectedMinTrees = currentAQI * 250;
+    expectedMaxTrees = currentAQI * 300;
+  } else {
+    expectedMinTrees = currentAQI * 300;
+    expectedMaxTrees = currentAQI * 350;
+  }
+  
+  // Get current tree count from AI response
+  const currentTrees = parseInt(data.recommendations.numberOfTrees) || 0;
+  
+  // Validate tree count
+  if (currentTrees < expectedMinTrees * 0.8 || currentTrees > expectedMaxTrees * 1.2) {
+    // Recalculate trees based on AQI
+    const calculatedTrees = Math.round((expectedMinTrees + expectedMaxTrees) / 2);
+    console.warn(`Tree count ${currentTrees} doesn't match AQI ${currentAQI}. Recalculating to ${calculatedTrees}`);
+    data.recommendations.numberOfTrees = calculatedTrees.toString();
+  }
+  
+  // Recalculate investment based on corrected tree count
+  const finalTreeCount = parseInt(data.recommendations.numberOfTrees) || 0;
+  const costPerTree = 4000; // ₹4,000 per tree
+  const calculatedInvestment = finalTreeCount * costPerTree;
+  
+  // Extract current investment amount (remove ₹ and commas)
+  const currentInvestmentStr = String(data.recommendations.investmentAmount || '0')
+    .replace(/₹|,|Rs|INR/gi, '')
+    .trim();
+  const currentInvestment = parseInt(currentInvestmentStr) || 0;
+  
+  // Validate investment (allow 20% variance for other costs)
+  if (currentInvestment < calculatedInvestment * 0.7 || currentInvestment > calculatedInvestment * 1.3) {
+    console.warn(`Investment ${currentInvestment} doesn't match tree count ${finalTreeCount}. Recalculating to ${calculatedInvestment}`);
+    data.recommendations.investmentAmount = `₹${calculatedInvestment.toLocaleString('en-IN')}`;
+  }
+  
+  // Recalculate carbon analysis based on tree count
+  if (data.recommendations.carbonAnalysis) {
+    const annualCarbon = (finalTreeCount * 0.025).toFixed(1);
+    const lifetimeCarbon = (finalTreeCount * 0.5).toFixed(1);
+    
+    data.recommendations.carbonAnalysis.annualCarbonSequestration = annualCarbon;
+    data.recommendations.carbonAnalysis.lifetimeCarbonSequestration = lifetimeCarbon;
+    
+    // Calculate pollution reduction based on tree count
+    const reductionPercent = Math.min(35, Math.max(20, Math.round((finalTreeCount / 10000) * 2)));
+    data.recommendations.carbonAnalysis.airPollutionReduction = `${reductionPercent}%`;
+  }
+  
+  // Recalculate projected AQI
+  if (data.recommendations.comparison && data.recommendations.comparison.after) {
+    const improvementFactor = Math.min(0.3, (finalTreeCount / 100000) * 0.3);
+    const projectedAQI = Math.max(0, Math.round(currentAQI * (1 - improvementFactor)));
+    data.recommendations.comparison.after.aqi = projectedAQI.toString();
+    
+    const improvementPercent = Math.round(improvementFactor * 100);
+    data.recommendations.comparison.improvement = `${improvementPercent}%`;
+    
+    // Set PM reduction percentages
+    const pmReduction = Math.min(35, Math.max(20, improvementPercent));
+    data.recommendations.comparison.after.pm25 = `${pmReduction}% reduction`;
+    data.recommendations.comparison.after.pm10 = `${pmReduction}% reduction`;
+  }
+  
+  // Recalculate maintenance (5% of investment)
+  if (data.recommendations.implementation) {
+    const investmentNum = parseInt(String(data.recommendations.investmentAmount).replace(/₹|,|Rs|INR/gi, '')) || calculatedInvestment;
+    const maintenance = Math.round(investmentNum * 0.05);
+    data.recommendations.implementation.maintenance = `₹${maintenance.toLocaleString('en-IN')}`;
+  }
+  
+  return data;
+}
+
+/**
  * Helper function to ensure rupee symbol is present
  */
 function ensureRupeeSymbol(value) {
@@ -217,13 +365,34 @@ function ensureRupeeSymbol(value) {
 /**
  * Create fallback recommendations when AI fails
  * IMPORTANT: All costs are in Indian Rupees (INR) only
+ * Uses the same calculation rules as the main prompt
  */
 function createFallbackRecommendation(aqiData) {
   const currentAQI = aqiData.aqi || 100;
-  const treesNeeded = Math.ceil(currentAQI / 2) * 100; // Rough estimate
+  
+  // Calculate trees based on AQI using the same formula as the prompt
+  let treesNeeded;
+  if (currentAQI <= 50) {
+    treesNeeded = Math.round((currentAQI * 50 + currentAQI * 100) / 2);
+  } else if (currentAQI <= 100) {
+    treesNeeded = Math.round((currentAQI * 100 + currentAQI * 150) / 2);
+  } else if (currentAQI <= 150) {
+    treesNeeded = Math.round((currentAQI * 150 + currentAQI * 200) / 2);
+  } else if (currentAQI <= 200) {
+    treesNeeded = Math.round((currentAQI * 200 + currentAQI * 250) / 2);
+  } else if (currentAQI <= 300) {
+    treesNeeded = Math.round((currentAQI * 250 + currentAQI * 300) / 2);
+  } else {
+    treesNeeded = Math.round((currentAQI * 300 + currentAQI * 350) / 2);
+  }
+  
   const costPerTree = 4000; // ₹4000 per tree average in Indian Rupees
   const investment = treesNeeded * costPerTree; // Total investment in INR
-  const projectedAQI = Math.max(0, currentAQI - (currentAQI * 0.3)); // 30% improvement
+  
+  // Calculate projected AQI based on tree count
+  const improvementFactor = Math.min(0.3, (treesNeeded / 100000) * 0.3);
+  const projectedAQI = Math.max(0, Math.round(currentAQI * (1 - improvementFactor)));
+  const improvementPercent = Math.round(improvementFactor * 100);
 
   return {
     summary: `Current air quality in ${aqiData.city} shows an AQI of ${currentAQI}. Tree planting can significantly improve air quality. Based on environmental research, planting ${treesNeeded} trees can reduce air pollution by 25-35% over 5 years.`,
@@ -236,9 +405,9 @@ function createFallbackRecommendation(aqiData) {
         benefits: 'Improved air quality, reduced healthcare costs, increased property values, carbon sequestration, and environmental benefits.',
       },
       carbonAnalysis: {
-        annualCarbonSequestration: `${(treesNeeded * 0.02).toFixed(1)}`,
+        annualCarbonSequestration: `${(treesNeeded * 0.025).toFixed(1)}`,
         lifetimeCarbonSequestration: `${(treesNeeded * 0.5).toFixed(1)}`,
-        airPollutionReduction: '25-35%',
+        airPollutionReduction: `${Math.min(35, Math.max(20, Math.round((treesNeeded / 10000) * 2)))}%`,
       },
       comparison: {
         before: {
@@ -248,12 +417,12 @@ function createFallbackRecommendation(aqiData) {
           description: 'Current air quality status',
         },
         after: {
-          aqi: projectedAQI.toFixed(0),
-          pm25: '20-30% reduction',
-          pm10: '25-35% reduction',
+          aqi: projectedAQI.toString(),
+          pm25: `${improvementPercent}% reduction`,
+          pm10: `${improvementPercent}% reduction`,
           description: 'Expected improvement after 5 years of tree planting',
         },
-        improvement: '30%',
+        improvement: `${improvementPercent}%`,
       },
       implementation: {
         phases: [
@@ -262,7 +431,7 @@ function createFallbackRecommendation(aqiData) {
           'Phase 3: Full ecosystem establishment (Years 4-5) - Mature trees providing maximum benefits',
         ],
         timeline: '5 years',
-        maintenance: `₹${(investment * 0.05).toLocaleString('en-IN')}`,
+        maintenance: `₹${Math.round(investment * 0.05).toLocaleString('en-IN')}`,
       },
     },
   };
