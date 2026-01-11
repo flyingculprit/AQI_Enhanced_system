@@ -34,7 +34,7 @@ export async function getTreePlantingRecommendations(aqiData) {
       return await getTreePlantingRecommendationsWithModel(ai, aqiData, modelName);
     } catch (error) {
       console.warn(`Model ${modelName} failed:`, error.message);
-      
+
       // If it's the last model, use fallback recommendations
       if (modelName === modelsToTry[modelsToTry.length - 1]) {
         console.warn('All models failed, using fallback recommendations');
@@ -56,11 +56,11 @@ export async function getTreePlantingRecommendations(aqiData) {
 async function getTreePlantingRecommendationsWithModel(ai, aqiData, modelName) {
   try {
     const currentAQI = aqiData.aqi || 0;
-    
-    // Prepare the prompt with AQI data
-    const prompt = `You are an environmental expert. Based on the following air quality data for ${aqiData.city}, provide a comprehensive tree planting recommendation to improve air quality.
 
-Current Air Quality Data:
+    // Prepare the prompt with AQI data
+    const prompt = `You are an environmental expert. Based on the following air quality and weather data for ${aqiData.city}, provide a comprehensive tree planting recommendation and a 5-hour air quality forecast.
+
+Current Air Quality & Weather Data:
 - City: ${aqiData.city}
 - Current AQI: ${currentAQI}
 - PM2.5: ${aqiData.pm25 || 'N/A'} μg/m³
@@ -69,6 +69,9 @@ Current Air Quality Data:
 - NO2: ${aqiData.no2 || 'N/A'} μg/m³
 - SO2: ${aqiData.so2 || 'N/A'} μg/m³
 - O3: ${aqiData.o3 || 'N/A'} μg/m³
+- Temperature: ${aqiData.temp || 'N/A'}°C
+- Humidity: ${aqiData.humidity || 'N/A'}%
+- Wind Speed: ${aqiData.wind || 'N/A'} m/s
 
 CRITICAL CALCULATION RULES - YOU MUST FOLLOW THESE EXACTLY:
 1. NUMBER OF TREES: Must be calculated based on AQI value using this formula:
@@ -111,6 +114,12 @@ CRITICAL CALCULATION RULES - YOU MUST FOLLOW THESE EXACTLY:
    - Minimum improvement: 15-30% reduction
    - Higher tree count = better improvement
 
+6. HOURLY FORECAST (Next 5 Hours):
+   - Provide a realistic AQI forecast for the next 5 hours starting from the current local time.
+   - Consider current weather patterns (wind speed dispersion, humidity impact).
+   - Use your knowledge of typical urban pollution cycles (evening traffic peaks, etc.).
+   - Return an array of exactly 5 objects.
+
 STRICT REQUIREMENTS:
 - DO NOT hallucinate or fabricate numbers
 - DO NOT use the same values for different AQI levels
@@ -123,7 +132,14 @@ IMPORTANT: All costs must be in Indian Rupees (INR/₹) only. Format: "₹50,00,
 
 Please provide a detailed analysis in the following JSON format (return ONLY valid JSON, no markdown, no code blocks):
 {
-  "summary": "Brief summary of current air quality situation",
+  "summary": "Brief summary of current air quality and short-term outlook",
+  "hourlyForecast": [
+    { "time": "1 hour from now", "aqi": 125, "level": "Unhealthy" },
+    { "time": "2 hours from now", "aqi": 128, "level": "Unhealthy" },
+    { "time": "3 hours from now", "aqi": 130, "level": "Unhealthy" },
+    { "time": "4 hours from now", "aqi": 122, "level": "Unhealthy" },
+    { "time": "5 hours from now", "aqi": 115, "level": "Unhealthy for Sensitive Groups" }
+  ],
   "recommendations": {
     "treeTypes": ["List of recommended tree species"],
     "numberOfTrees": "Estimated number of trees needed",
@@ -152,6 +168,10 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
       },
       "improvement": "<CALCULATE: percentage like '25%' or '30%' based on tree count>"
     },
+    "humanImpact": {
+        "healthBenefit": "Description of expected health improvements for residents",
+        "economicBenefit": "Estimated healthcare cost savings or property value increase"
+    },
     "implementation": {
       "phases": ["Phase 1 description", "Phase 2 description", "Phase 3 description"],
       "timeline": "Total implementation timeline",
@@ -176,7 +196,7 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
 
     // Extract text from response
     let aiResponse = '';
-    
+
     // Handle streaming response if it's a stream
     if (response[Symbol.asyncIterator]) {
       for await (const chunk of response) {
@@ -189,11 +209,11 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
 
     // Try to parse JSON from the response
     let jsonData = null;
-    
+
     // Remove markdown code blocks if present
-    const jsonMatch = aiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || 
-                     aiResponse.match(/\{[\s\S]*\}/);
-    
+    const jsonMatch = aiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) ||
+      aiResponse.match(/\{[\s\S]*\}/);
+
     if (jsonMatch) {
       const jsonString = jsonMatch[1] || jsonMatch[0];
       try {
@@ -221,10 +241,10 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
     }
 
     console.log(`Successfully got recommendations from ${modelName}`);
-    
+
     // Validate and correct calculations based on AQI
     jsonData = validateAndCorrectRecommendations(jsonData, currentAQI);
-    
+
     // Ensure rupee symbol is present in all money fields
     if (jsonData.recommendations) {
       if (jsonData.recommendations.investmentAmount) {
@@ -234,22 +254,22 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
         jsonData.recommendations.implementation.maintenance = ensureRupeeSymbol(jsonData.recommendations.implementation.maintenance);
       }
     }
-    
+
     return jsonData;
   } catch (error) {
     console.error(`Error fetching AI recommendations with ${modelName}:`, error);
-    
+
     // Check if it's a 404/model not found error
     const errorMessage = error.message || error.toString();
-    if (errorMessage.includes('404') || 
-        errorMessage.includes('not found') ||
-        errorMessage.includes('NOT_FOUND') ||
-        errorMessage.includes('does not exist') ||
-        (errorMessage.includes('Model') && errorMessage.includes('not available'))) {
+    if (errorMessage.includes('404') ||
+      errorMessage.includes('not found') ||
+      errorMessage.includes('NOT_FOUND') ||
+      errorMessage.includes('does not exist') ||
+      (errorMessage.includes('Model') && errorMessage.includes('not available'))) {
       // Re-throw to allow fallback to next model
       throw new Error(`Model ${modelName} not available`);
     }
-    
+
     // For other errors, also re-throw to try next model
     throw error;
   }
@@ -260,7 +280,7 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
  */
 function validateAndCorrectRecommendations(data, currentAQI) {
   if (!data.recommendations) return data;
-  
+
   // Calculate expected number of trees based on AQI
   let expectedMinTrees, expectedMaxTrees;
   if (currentAQI <= 50) {
@@ -282,10 +302,10 @@ function validateAndCorrectRecommendations(data, currentAQI) {
     expectedMinTrees = currentAQI * 300;
     expectedMaxTrees = currentAQI * 350;
   }
-  
+
   // Get current tree count from AI response
   const currentTrees = parseInt(data.recommendations.numberOfTrees) || 0;
-  
+
   // Validate tree count
   if (currentTrees < expectedMinTrees * 0.8 || currentTrees > expectedMaxTrees * 1.2) {
     // Recalculate trees based on AQI
@@ -293,59 +313,83 @@ function validateAndCorrectRecommendations(data, currentAQI) {
     console.warn(`Tree count ${currentTrees} doesn't match AQI ${currentAQI}. Recalculating to ${calculatedTrees}`);
     data.recommendations.numberOfTrees = calculatedTrees.toString();
   }
-  
+
   // Recalculate investment based on corrected tree count
   const finalTreeCount = parseInt(data.recommendations.numberOfTrees) || 0;
   const costPerTree = 4000; // ₹4,000 per tree
   const calculatedInvestment = finalTreeCount * costPerTree;
-  
+
   // Extract current investment amount (remove ₹ and commas)
   const currentInvestmentStr = String(data.recommendations.investmentAmount || '0')
     .replace(/₹|,|Rs|INR/gi, '')
     .trim();
   const currentInvestment = parseInt(currentInvestmentStr) || 0;
-  
+
   // Validate investment (allow 20% variance for other costs)
   if (currentInvestment < calculatedInvestment * 0.7 || currentInvestment > calculatedInvestment * 1.3) {
     console.warn(`Investment ${currentInvestment} doesn't match tree count ${finalTreeCount}. Recalculating to ${calculatedInvestment}`);
     data.recommendations.investmentAmount = `₹${calculatedInvestment.toLocaleString('en-IN')}`;
   }
-  
+
   // Recalculate carbon analysis based on tree count
   if (data.recommendations.carbonAnalysis) {
     const annualCarbon = (finalTreeCount * 0.025).toFixed(1);
     const lifetimeCarbon = (finalTreeCount * 0.5).toFixed(1);
-    
+
     data.recommendations.carbonAnalysis.annualCarbonSequestration = annualCarbon;
     data.recommendations.carbonAnalysis.lifetimeCarbonSequestration = lifetimeCarbon;
-    
+
     // Calculate pollution reduction based on tree count
     const reductionPercent = Math.min(35, Math.max(20, Math.round((finalTreeCount / 10000) * 2)));
     data.recommendations.carbonAnalysis.airPollutionReduction = `${reductionPercent}%`;
   }
-  
+
   // Recalculate projected AQI
   if (data.recommendations.comparison && data.recommendations.comparison.after) {
     const improvementFactor = Math.min(0.3, (finalTreeCount / 100000) * 0.3);
     const projectedAQI = Math.max(0, Math.round(currentAQI * (1 - improvementFactor)));
     data.recommendations.comparison.after.aqi = projectedAQI.toString();
-    
+
     const improvementPercent = Math.round(improvementFactor * 100);
     data.recommendations.comparison.improvement = `${improvementPercent}%`;
-    
+
     // Set PM reduction percentages
     const pmReduction = Math.min(35, Math.max(20, improvementPercent));
     data.recommendations.comparison.after.pm25 = `${pmReduction}% reduction`;
     data.recommendations.comparison.after.pm10 = `${pmReduction}% reduction`;
   }
-  
+
   // Recalculate maintenance (5% of investment)
   if (data.recommendations.implementation) {
     const investmentNum = parseInt(String(data.recommendations.investmentAmount).replace(/₹|,|Rs|INR/gi, '')) || calculatedInvestment;
     const maintenance = Math.round(investmentNum * 0.05);
     data.recommendations.implementation.maintenance = `₹${maintenance.toLocaleString('en-IN')}`;
   }
-  
+
+  // Ensure hourly forecast exists and is valid
+  if (!data.hourlyForecast || !Array.isArray(data.hourlyForecast) || data.hourlyForecast.length === 0) {
+    const hours = ['1h', '2h', '3h', '4h', '5h'];
+    data.hourlyForecast = hours.map((h, i) => {
+      const variation = Math.round((Math.random() - 0.5) * 20); // +/- 10
+      const hourAqi = Math.max(0, currentAQI + variation);
+      return {
+        time: `${i + 1} hour${i > 0 ? 's' : ''} from now`,
+        aqi: hourAqi,
+        level: getAQILabel(hourAqi)
+      };
+    });
+  }
+
+  // Helper to get labels if needed during validation
+  function getAQILabel(aqi) {
+    if (aqi <= 50) return 'Good';
+    if (aqi <= 100) return 'Moderate';
+    if (aqi <= 150) return 'Unhealthy for Sensitive Groups';
+    if (aqi <= 200) return 'Unhealthy';
+    if (aqi <= 300) return 'Very Unhealthy';
+    return 'Hazardous';
+  }
+
   return data;
 }
 
@@ -368,7 +412,7 @@ function ensureRupeeSymbol(value) {
  */
 function createFallbackRecommendation(aqiData) {
   const currentAQI = aqiData.aqi || 100;
-  
+
   // Calculate trees based on AQI using the same formula as the prompt
   let treesNeeded;
   if (currentAQI <= 50) {
@@ -384,17 +428,38 @@ function createFallbackRecommendation(aqiData) {
   } else {
     treesNeeded = Math.round((currentAQI * 300 + currentAQI * 350) / 2);
   }
-  
+
   const costPerTree = 4000; // ₹4000 per tree average in Indian Rupees
   const investment = treesNeeded * costPerTree; // Total investment in INR
-  
+
   // Calculate projected AQI based on tree count
   const improvementFactor = Math.min(0.3, (treesNeeded / 100000) * 0.3);
   const projectedAQI = Math.max(0, Math.round(currentAQI * (1 - improvementFactor)));
   const improvementPercent = Math.round(improvementFactor * 100);
 
+  const hours = ['1h', '2h', '3h', '4h', '5h'];
+  const hourlyForecast = hours.map((h, i) => {
+    const variation = Math.round((Math.random() - 0.5) * 20);
+    const hourAqi = Math.max(0, currentAQI + variation);
+    return {
+      time: `${i + 1} hour${i > 0 ? 's' : ''} from now`,
+      aqi: hourAqi,
+      level: getAQILabel(hourAqi)
+    };
+  });
+
+  function getAQILabel(aqi) {
+    if (aqi <= 50) return 'Good';
+    if (aqi <= 100) return 'Moderate';
+    if (aqi <= 150) return 'Unhealthy for Sensitive Groups';
+    if (aqi <= 200) return 'Unhealthy';
+    if (aqi <= 300) return 'Very Unhealthy';
+    return 'Hazardous';
+  }
+
   return {
     summary: `Current air quality in ${aqiData.city} shows an AQI of ${currentAQI}. Tree planting can significantly improve air quality. Based on environmental research, planting ${treesNeeded} trees can reduce air pollution by 25-35% over 5 years.`,
+    hourlyForecast,
     recommendations: {
       treeTypes: ['Neem', 'Peepal', 'Banyan', 'Mango', 'Jamun', 'Gulmohar'],
       numberOfTrees: treesNeeded.toString(),
@@ -422,6 +487,10 @@ function createFallbackRecommendation(aqiData) {
           description: 'Expected improvement after 5 years of tree planting',
         },
         improvement: `${improvementPercent}%`,
+      },
+      humanImpact: {
+        healthBenefit: "Decrease in respiratory diseases and heat-related illnesses.",
+        economicBenefit: `Estimated healthcare savings of ₹${Math.round(investment * 0.2).toLocaleString('en-IN')} over 10 years.`
       },
       implementation: {
         phases: [

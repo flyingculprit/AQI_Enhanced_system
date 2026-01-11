@@ -3,6 +3,7 @@ import { getTreePlantingRecommendations } from '../api/aiService';
 import { formatRupees } from '../utils/currency';
 import Loader from './Loader';
 import ErrorBox from './ErrorBox';
+import AQIPredictionGraph from './AQIPredictionGraph';
 
 function TreeRecommendations({ aqiData, enabled }) {
   const [recommendations, setRecommendations] = useState(null);
@@ -20,7 +21,7 @@ function TreeRecommendations({ aqiData, enabled }) {
         hasFetchedRef.current = false;
         lastAqiDataRef.current = dataKey;
       }
-      
+
       if (!hasFetchedRef.current) {
         hasFetchedRef.current = true;
         // Call fetchRecommendations directly
@@ -51,7 +52,6 @@ function TreeRecommendations({ aqiData, enabled }) {
   }, [aqiData?.city, aqiData?.aqi, enabled]);
 
   const fetchRecommendations = async () => {
-    // Reset ref to allow fetching again
     hasFetchedRef.current = false;
     setLoading(true);
     setError(null);
@@ -60,10 +60,10 @@ function TreeRecommendations({ aqiData, enabled }) {
     try {
       const data = await getTreePlantingRecommendations(aqiData);
       setRecommendations(data);
-      hasFetchedRef.current = true; // Mark as fetched
+      hasFetchedRef.current = true;
     } catch (err) {
       setError(err.message || 'Failed to fetch AI recommendations');
-      hasFetchedRef.current = false; // Allow retry on error
+      hasFetchedRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -93,17 +93,19 @@ function TreeRecommendations({ aqiData, enabled }) {
       {loading && <Loader />}
 
       {recommendations && !loading && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Summary */}
           <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-5">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Summary</h3>
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">AI Summary</h3>
             <p className="text-gray-200 leading-relaxed">{recommendations.summary}</p>
           </div>
 
+          {/* Hourly Prediction Graph */}
+          <AQIPredictionGraph data={recommendations.hourlyForecast} />
+
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Number of Trees */}
-            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600 hover:border-blue-500/50 transition-colors">
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600 hover:border-blue-500/50 transition-colors shadow-lg shadow-black/20">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-lg">🌲</span>
                 <h3 className="font-medium text-gray-400 text-xs uppercase tracking-wide">Trees Needed</h3>
@@ -113,8 +115,7 @@ function TreeRecommendations({ aqiData, enabled }) {
               </p>
             </div>
 
-            {/* Investment */}
-            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600 hover:border-blue-500/50 transition-colors">
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600 hover:border-blue-500/50 transition-colors shadow-lg shadow-black/20">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-lg">💰</span>
                 <h3 className="font-medium text-gray-400 text-xs uppercase tracking-wide">Investment</h3>
@@ -124,8 +125,7 @@ function TreeRecommendations({ aqiData, enabled }) {
               </p>
             </div>
 
-            {/* ROI Timeframe */}
-            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600 hover:border-blue-500/50 transition-colors">
+            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600 hover:border-blue-500/50 transition-colors shadow-lg shadow-black/20">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-lg">📈</span>
                 <h3 className="font-medium text-gray-400 text-xs uppercase tracking-wide">ROI Timeframe</h3>
@@ -184,6 +184,25 @@ function TreeRecommendations({ aqiData, enabled }) {
             </div>
           )}
 
+          {/* Human Impact */}
+          {recommendations.recommendations?.humanImpact && (
+            <div className="bg-blue-900/10 border border-blue-500/20 rounded-lg p-5">
+              <h3 className="font-semibold text-blue-400 mb-4 text-sm uppercase tracking-wide flex items-center gap-2">
+                <span>👨‍👩‍👧‍👦</span> Human Impact Analysis
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Health Benefits</p>
+                  <p className="text-gray-200 text-sm leading-relaxed">{recommendations.recommendations.humanImpact.healthBenefit}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Economic & Social Value</p>
+                  <p className="text-gray-200 text-sm leading-relaxed">{recommendations.recommendations.humanImpact.economicBenefit}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Before/After Comparison */}
           {recommendations.recommendations?.comparison && (
             <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600">
@@ -191,7 +210,6 @@ function TreeRecommendations({ aqiData, enabled }) {
                 <span>📊</span> Before & After Comparison
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-                {/* Before */}
                 <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600">
                   <h4 className="font-semibold text-gray-300 mb-4 text-sm uppercase tracking-wide">Before Planting</h4>
                   <div className="space-y-3">
@@ -213,14 +231,10 @@ function TreeRecommendations({ aqiData, enabled }) {
                         {recommendations.recommendations.comparison.before.pm10} <span className="text-xs text-gray-500">μg/m³</span>
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-3 leading-relaxed">
-                      {recommendations.recommendations.comparison.before.description}
-                    </p>
                   </div>
                 </div>
 
-                {/* After */}
-                <div className="bg-gray-800/50 rounded-lg p-4 border border-blue-500/50">
+                <div className="bg-blue-900/10 rounded-lg p-4 border border-blue-500/20">
                   <h4 className="font-semibold text-blue-400 mb-4 text-sm uppercase tracking-wide">After 5 Years</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center py-2 border-b border-gray-700">
@@ -232,23 +246,19 @@ function TreeRecommendations({ aqiData, enabled }) {
                     <div className="flex justify-between items-center py-2 border-b border-gray-700">
                       <span className="text-gray-400 text-sm">PM2.5</span>
                       <span className="font-semibold text-blue-400">
-                        {recommendations.recommendations.comparison.after.pm25} <span className="text-xs text-gray-500">μg/m³</span>
+                        {recommendations.recommendations.comparison.after.pm25}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-700">
                       <span className="text-gray-400 text-sm">PM10</span>
                       <span className="font-semibold text-blue-400">
-                        {recommendations.recommendations.comparison.after.pm10} <span className="text-xs text-gray-500">μg/m³</span>
+                        {recommendations.recommendations.comparison.after.pm10}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-3 leading-relaxed">
-                      {recommendations.recommendations.comparison.after.description}
-                    </p>
                   </div>
                 </div>
               </div>
-              
-              {/* Improvement Percentage */}
+
               <div className="text-center pt-4 border-t border-gray-600">
                 <div className="inline-block bg-blue-600/20 border border-blue-500/30 px-6 py-3 rounded-lg">
                   <span className="text-xs text-gray-400 mr-2 uppercase tracking-wide">Expected Improvement</span>
@@ -257,18 +267,6 @@ function TreeRecommendations({ aqiData, enabled }) {
                   </span>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* ROI Benefits */}
-          {recommendations.recommendations?.roi && (
-            <div className="bg-gray-700/50 rounded-lg p-5 border border-gray-600">
-              <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide flex items-center gap-2">
-                <span>💡</span> ROI Benefits
-              </h3>
-              <p className="text-gray-200 leading-relaxed">
-                {recommendations.recommendations.roi.benefits}
-              </p>
             </div>
           )}
 
@@ -309,4 +307,3 @@ function TreeRecommendations({ aqiData, enabled }) {
 }
 
 export default TreeRecommendations;
-
