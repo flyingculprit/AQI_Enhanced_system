@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AQIDashboard from './pages/AQIDashboard';
+import LiveDashboard from './pages/LiveDashboard';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
+import Setup from './pages/Setup';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function Navigation() {
@@ -35,6 +37,16 @@ function Navigation() {
                   className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
                 >
                   Dashboard
+                </Link>
+                <Link
+                  to="/live"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors flex items-center gap-2 font-medium"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                  </span>
+                  Live
                 </Link>
                 <span className="text-gray-300">
                   {user.email}
@@ -86,12 +98,14 @@ function AppContent() {
                   <p className="text-gray-300 mb-6">
                     Monitor air quality and weather data for cities around the world.
                   </p>
-                  <Link
-                    to="/aqi"
-                    className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
-                  >
-                    Go to Dashboard
-                  </Link>
+                  <div className="flex gap-4 justify-center">
+                    <Link
+                      to="/aqi"
+                      className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                    >
+                      Go to Dashboard
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -99,11 +113,20 @@ function AppContent() {
         />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/setup" element={<Setup />} />
         <Route
           path="/aqi"
           element={
             <ProtectedRoute>
               <AQIDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/live"
+          element={
+            <ProtectedRoute>
+              <LiveDashboard />
             </ProtectedRoute>
           }
         />

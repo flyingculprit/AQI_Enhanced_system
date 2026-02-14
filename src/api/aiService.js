@@ -7,8 +7,10 @@ import { GoogleGenAI } from '@google/genai';
 
 /**
  * Main export function - uses gemini-2.5-flash (working model)
+ * @param {Object} aqiData - AQI data object
+ * @param {string} mode - 'manual' (default) for weather API data, 'sensor' for sensor-only data
  */
-export async function getTreePlantingRecommendations(aqiData) {
+export async function getTreePlantingRecommendations(aqiData, mode = 'manual') {
   const geminiKey = import.meta.env.VITE_GEMINI_KEY;
 
   if (!geminiKey) {
@@ -31,7 +33,7 @@ export async function getTreePlantingRecommendations(aqiData) {
   for (const modelName of modelsToTry) {
     try {
       console.log(`Trying model: ${modelName}`);
-      return await getTreePlantingRecommendationsWithModel(ai, aqiData, modelName);
+      return await getTreePlantingRecommendationsWithModel(ai, aqiData, modelName, mode);
     } catch (error) {
       console.warn(`Model ${modelName} failed:`, error.message);
 
@@ -51,14 +53,119 @@ export async function getTreePlantingRecommendations(aqiData) {
  * @param {GoogleGenAI} ai - Initialized GoogleGenAI instance
  * @param {Object} aqiData - AQI data object containing city, aqi, pollutants, etc.
  * @param {string} modelName - Model name to use
+ * @param {string} mode - 'manual' (default) for weather API data, 'sensor' for sensor-only data
  * @returns {Promise<Object>} AI recommendations with investment, trees, ROI, carbon analysis
  */
-async function getTreePlantingRecommendationsWithModel(ai, aqiData, modelName) {
+async function getTreePlantingRecommendationsWithModel(ai, aqiData, modelName, mode = 'manual') {
   try {
     const currentAQI = aqiData.aqi || 0;
 
-    // Prepare the prompt with AQI data
-    const prompt = `You are an environmental expert. Based on the following air quality and weather data for ${aqiData.city}, provide a comprehensive tree planting recommendation and a 5-hour air quality forecast.
+    // Build prompt based on mode
+    const prompt = mode === 'sensor' 
+      ? buildSensorPrompt(aqiData, currentAQI)
+      : buildManualPrompt(aqiData, currentAQI);
+
+    // Use the working API format from your example
+    const contents = [
+      {
+        role: "user",
+        parts: [{ text: prompt }],
+      },
+    ];
+
+    // Use generateContent (not generateContentStream) to get full response
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents,
+    });
+
+    // Extract text from response
+    let aiResponse = '';
+
+    // Handle streaming response if it's a stream
+    if (response[Symbol.asyncIterator]) {
+      for await (const chunk of response) {
+        aiResponse += chunk.text ?? '';
+      }
+    } else {
+      // Handle regular response
+      aiResponse = response.text ?? response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    }
+
+    // Try to parse JSON from the response
+    let jsonData = null;
+
+    // Remove markdown code blocks if present
+    const jsonMatch = aiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) ||
+      aiResponse.match(/\{[\s\S]*\}/);
+
+    if (jsonMatch) {
+      const jsonString = jsonMatch[1] || jsonMatch[0];
+      try {
+        jsonData = JSON.parse(jsonString);
+      } catch (e) {
+        // If parsing fails, try to extract JSON from the full response
+        try {
+          jsonData = JSON.parse(aiResponse);
+        } catch (e2) {
+          console.error('Failed to parse AI response as JSON:', e2);
+          console.log('Raw AI response:', aiResponse);
+          // Return a structured fallback
+          return createFallbackRecommendation(aqiData);
+        }
+      }
+    } else {
+      // Try parsing the entire response
+      try {
+        jsonData = JSON.parse(aiResponse);
+      } catch (e) {
+        console.error('Failed to parse AI response:', e);
+        console.log('Raw AI response:', aiResponse);
+        return createFallbackRecommendation(aqiData);
+      }
+    }
+
+    console.log(`Successfully got recommendations from ${modelName}`);
+
+    // Validate and correct calculations based on AQI
+    jsonData = validateAndCorrectRecommendations(jsonData, currentAQI);
+
+    // Ensure rupee symbol is present in all money fields
+    if (jsonData.recommendations) {
+      if (jsonData.recommendations.investmentAmount) {
+        jsonData.recommendations.investmentAmount = ensureRupeeSymbol(jsonData.recommendations.investmentAmount);
+      }
+      if (jsonData.recommendations.implementation?.maintenance) {
+        jsonData.recommendations.implementation.maintenance = ensureRupeeSymbol(jsonData.recommendations.implementation.maintenance);
+      }
+    }
+
+    return jsonData;
+  } catch (error) {
+    console.error(`Error fetching AI recommendations with ${modelName}:`, error);
+
+    // Check if it's a 404/model not found error
+    const errorMessage = error.message || error.toString();
+    if (errorMessage.includes('404') ||
+      errorMessage.includes('not found') ||
+      errorMessage.includes('NOT_FOUND') ||
+      errorMessage.includes('does not exist') ||
+      (errorMessage.includes('Model') && errorMessage.includes('not available'))) {
+      // Re-throw to allow fallback to next model
+      throw new Error(`Model ${modelName} not available`);
+    }
+
+    // For other errors, also re-throw to try next model
+    throw error;
+  }
+}
+
+/**
+ * Build prompt for manual location mode (with weather API data)
+ * DO NOT CHANGE THIS PROMPT - it's the existing one
+ */
+function buildManualPrompt(aqiData, currentAQI) {
+  return `You are an environmental expert. Based on the following air quality and weather data for ${aqiData.city}, provide a comprehensive tree planting recommendation and a 5-hour air quality forecast.
 
 Current Air Quality & Weather Data:
 - City: ${aqiData.city}
@@ -179,100 +286,131 @@ Please provide a detailed analysis in the following JSON format (return ONLY val
     }
   }
 }`;
+}
 
-    // Use the working API format from your example
-    const contents = [
-      {
-        role: "user",
-        parts: [{ text: prompt }],
+/**
+ * Build prompt for sensor mode (MQ135 sensor data only, no weather API data)
+ */
+function buildSensorPrompt(aqiData, currentAQI) {
+  return `You are an environmental expert. This is the MQ135 sensor data. Tell all the data by this. No from weather API AQI data.
+
+IMPORTANT: This data comes ONLY from an MQ135 air quality sensor. Do NOT reference or use any weather API data (temperature, humidity, wind speed, etc.) as it is not available.
+
+Current MQ135 Sensor Data:
+- Location: ${aqiData.city || 'Live Sensor Location'}
+- Current AQI: ${currentAQI}
+- Data Source: MQ135 Sensor (ESP32)
+- Note: Only AQI value is available from the sensor. Other pollutant data (PM2.5, PM10, CO, NO2, SO2, O3) and weather data are not available.
+
+Based solely on this MQ135 sensor AQI reading, provide a comprehensive tree planting recommendation and a 5-hour air quality forecast.
+
+CRITICAL CALCULATION RULES - YOU MUST FOLLOW THESE EXACTLY:
+1. NUMBER OF TREES: Must be calculated based on AQI value using this formula:
+   - For AQI 0-50 (Good): Trees = AQI × 50 to 100
+   - For AQI 51-100 (Moderate): Trees = AQI × 100 to 150
+   - For AQI 101-150 (Unhealthy for Sensitive): Trees = AQI × 150 to 200
+   - For AQI 151-200 (Unhealthy): Trees = AQI × 200 to 250
+   - For AQI 201-300 (Very Unhealthy): Trees = AQI × 250 to 300
+   - For AQI 300+ (Hazardous): Trees = AQI × 300 to 350
+   
+   EXAMPLE: If AQI is 300, trees should be between 75,000 to 105,000 (300 × 250 to 300 × 350)
+   EXAMPLE: If AQI is 60, trees should be between 6,000 to 9,000 (60 × 100 to 60 × 150)
+   
+   DO NOT use the same number of trees for different AQI values. Higher AQI MUST mean more trees.
+
+2. INVESTMENT AMOUNT: Must be calculated as: numberOfTrees × costPerTree
+   - Cost per tree in India: ₹3,000 to ₹5,000 (average ₹4,000)
+   - Formula: investmentAmount = numberOfTrees × 4000
+   - EXAMPLE: If 10,000 trees, investment = 10,000 × 4,000 = ₹4,00,00,000
+   - EXAMPLE: If 7,500 trees, investment = 7,500 × 4,000 = ₹3,00,00,000
+   
+   DO NOT fabricate investment amounts. They MUST be calculated from tree count.
+
+3. CONSISTENCY CHECK: 
+   - Higher AQI MUST result in higher number of trees
+   - Higher number of trees MUST result in higher investment
+   - If AQI is 300, trees MUST be significantly more than if AQI is 60
+   - All calculations must be proportional and logical
+
+4. CARBON ANALYSIS:
+   - Annual CO2 per tree: 0.02 to 0.03 tons/year
+   - Formula: annualCarbonSequestration = numberOfTrees × 0.025
+   - Lifetime CO2 per tree: 0.4 to 0.6 tons (over 20-30 years)
+   - Formula: lifetimeCarbonSequestration = numberOfTrees × 0.5
+   - Air pollution reduction: 20-35% over 5 years (higher for more trees)
+
+5. PROJECTED AQI AFTER 5 YEARS:
+   - Calculate based on tree count and current AQI
+   - Formula: projectedAQI = currentAQI × (1 - (numberOfTrees / 100000) × 0.3)
+   - Minimum improvement: 15-30% reduction
+   - Higher tree count = better improvement
+
+6. HOURLY FORECAST (Next 5 Hours):
+   - Provide a realistic AQI forecast for the next 5 hours starting from the current local time.
+   - Base your forecast on typical urban pollution patterns and the current AQI level.
+   - Since weather data is not available, use general knowledge of pollution cycles (traffic patterns, time of day, etc.).
+   - Return an array of exactly 5 objects.
+
+STRICT REQUIREMENTS:
+- DO NOT reference weather API data (temperature, humidity, wind speed) - it is NOT available
+- DO NOT hallucinate or fabricate numbers
+- DO NOT use the same values for different AQI levels
+- ALL numbers MUST be calculated from the provided AQI value
+- Investment MUST be proportional to tree count
+- Higher AQI MUST mean more trees and higher investment
+- Return ONLY valid JSON, no markdown, no code blocks, no explanations
+
+IMPORTANT: All costs must be in Indian Rupees (INR/₹) only. Format: "₹50,00,000" (Indian numbering system).
+
+Please provide a detailed analysis in the following JSON format (return ONLY valid JSON, no markdown, no code blocks):
+{
+  "summary": "Brief summary of current air quality from MQ135 sensor and short-term outlook",
+  "hourlyForecast": [
+    { "time": "1 hour from now", "aqi": 125, "level": "Unhealthy" },
+    { "time": "2 hours from now", "aqi": 128, "level": "Unhealthy" },
+    { "time": "3 hours from now", "aqi": 130, "level": "Unhealthy" },
+    { "time": "4 hours from now", "aqi": 122, "level": "Unhealthy" },
+    { "time": "5 hours from now", "aqi": 115, "level": "Unhealthy for Sensitive Groups" }
+  ],
+  "recommendations": {
+    "treeTypes": ["List of recommended tree species"],
+    "numberOfTrees": "Estimated number of trees needed",
+    "investmentAmount": "Total investment required in Indian Rupees with ₹ symbol (e.g., ₹50,00,000)",
+    "roi": {
+      "timeframe": "Expected ROI timeframe (e.g., '5-7 years')",
+      "benefits": "Description of ROI benefits"
+    },
+    "carbonAnalysis": {
+      "annualCarbonSequestration": "Estimated CO2 sequestered per year in tons",
+      "lifetimeCarbonSequestration": "Total CO2 sequestered over tree lifetime in tons",
+      "airPollutionReduction": "Estimated reduction in air pollutants percentage"
+    },
+    "comparison": {
+      "before": {
+        "aqi": ${currentAQI},
+        "pm25": "N/A (sensor data not available)",
+        "pm10": "N/A (sensor data not available)",
+        "description": "Current air quality status from MQ135 sensor"
       },
-    ];
-
-    // Use generateContent (not generateContentStream) to get full response
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents,
-    });
-
-    // Extract text from response
-    let aiResponse = '';
-
-    // Handle streaming response if it's a stream
-    if (response[Symbol.asyncIterator]) {
-      for await (const chunk of response) {
-        aiResponse += chunk.text ?? '';
-      }
-    } else {
-      // Handle regular response
-      aiResponse = response.text ?? response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      "after": {
+        "aqi": <CALCULATE: projected AQI as number, must be lower than ${currentAQI}>,
+        "pm25": "<CALCULATE: percentage reduction like '25%' or '30%'>",
+        "pm10": "<CALCULATE: percentage reduction like '25%' or '30%'>",
+        "description": "Expected air quality improvement after 5 years"
+      },
+      "improvement": "<CALCULATE: percentage like '25%' or '30%' based on tree count>"
+    },
+    "humanImpact": {
+        "healthBenefit": "Description of expected health improvements for residents",
+        "economicBenefit": "Estimated healthcare cost savings or property value increase"
+    },
+    "implementation": {
+      "phases": ["Phase 1 description", "Phase 2 description", "Phase 3 description"],
+      "timeline": "Total implementation timeline",
+      "maintenance": "Annual maintenance cost in Indian Rupees with ₹ symbol (e.g., ₹2,50,000)"
     }
-
-    // Try to parse JSON from the response
-    let jsonData = null;
-
-    // Remove markdown code blocks if present
-    const jsonMatch = aiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) ||
-      aiResponse.match(/\{[\s\S]*\}/);
-
-    if (jsonMatch) {
-      const jsonString = jsonMatch[1] || jsonMatch[0];
-      try {
-        jsonData = JSON.parse(jsonString);
-      } catch (e) {
-        // If parsing fails, try to extract JSON from the full response
-        try {
-          jsonData = JSON.parse(aiResponse);
-        } catch (e2) {
-          console.error('Failed to parse AI response as JSON:', e2);
-          console.log('Raw AI response:', aiResponse);
-          // Return a structured fallback
-          return createFallbackRecommendation(aqiData);
-        }
-      }
-    } else {
-      // Try parsing the entire response
-      try {
-        jsonData = JSON.parse(aiResponse);
-      } catch (e) {
-        console.error('Failed to parse AI response:', e);
-        console.log('Raw AI response:', aiResponse);
-        return createFallbackRecommendation(aqiData);
-      }
-    }
-
-    console.log(`Successfully got recommendations from ${modelName}`);
-
-    // Validate and correct calculations based on AQI
-    jsonData = validateAndCorrectRecommendations(jsonData, currentAQI);
-
-    // Ensure rupee symbol is present in all money fields
-    if (jsonData.recommendations) {
-      if (jsonData.recommendations.investmentAmount) {
-        jsonData.recommendations.investmentAmount = ensureRupeeSymbol(jsonData.recommendations.investmentAmount);
-      }
-      if (jsonData.recommendations.implementation?.maintenance) {
-        jsonData.recommendations.implementation.maintenance = ensureRupeeSymbol(jsonData.recommendations.implementation.maintenance);
-      }
-    }
-
-    return jsonData;
-  } catch (error) {
-    console.error(`Error fetching AI recommendations with ${modelName}:`, error);
-
-    // Check if it's a 404/model not found error
-    const errorMessage = error.message || error.toString();
-    if (errorMessage.includes('404') ||
-      errorMessage.includes('not found') ||
-      errorMessage.includes('NOT_FOUND') ||
-      errorMessage.includes('does not exist') ||
-      (errorMessage.includes('Model') && errorMessage.includes('not available'))) {
-      // Re-throw to allow fallback to next model
-      throw new Error(`Model ${modelName} not available`);
-    }
-
-    // For other errors, also re-throw to try next model
-    throw error;
   }
+}`;
 }
 
 /**
@@ -403,6 +541,219 @@ function ensureRupeeSymbol(value) {
   // Remove any other currency symbols and add rupee symbol
   const clean = str.replace(/[$]|USD|INR/gi, '').trim();
   return `₹${clean}`;
+}
+
+/**
+ * Enrich MQ135 sensor data with AI-generated pollutant and weather information
+ * @param {number} sensorValue - Raw MQ135 sensor reading (not AQI)
+ * @returns {Promise<Object>} Enriched data with pollutants, weather, and forecast
+ */
+export async function enrichSensorDataWithAI(sensorValue) {
+  const geminiKey = import.meta.env.VITE_GEMINI_KEY;
+
+  if (!geminiKey) {
+    throw new Error('Gemini API key is missing. Please check your .env file.');
+  }
+
+  const ai = new GoogleGenAI({
+    apiKey: geminiKey,
+  });
+
+  // Convert sensor value to AQI category for context
+  let aqiCategory, estimatedAQI;
+  if (sensorValue <= 350) {
+    aqiCategory = 'Good';
+    estimatedAQI = Math.round((sensorValue / 350) * 50); // Scale to 0-50
+  } else if (sensorValue <= 800) {
+    aqiCategory = 'Moderate';
+    estimatedAQI = Math.round(50 + ((sensorValue - 350) / 450) * 50); // Scale to 51-100
+  } else {
+    aqiCategory = 'Hazard';
+    estimatedAQI = Math.round(100 + ((sensorValue - 800) / 200) * 200); // Scale to 101-300+
+    if (estimatedAQI > 300) estimatedAQI = 300;
+  }
+
+  const prompt = buildSensorEnrichmentPrompt(sensorValue, aqiCategory, estimatedAQI);
+
+  try {
+    const contents = [
+      {
+        role: "user",
+        parts: [{ text: prompt }],
+      },
+    ];
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents,
+    });
+
+    // Extract text from response
+    let aiResponse = '';
+    if (response[Symbol.asyncIterator]) {
+      for await (const chunk of response) {
+        aiResponse += chunk.text ?? '';
+      }
+    } else {
+      aiResponse = response.text ?? response.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    }
+
+    // Parse JSON from response
+    let jsonData = null;
+    const jsonMatch = aiResponse.match(/```(?:json)?\s*([\s\S]*?)\s*```/) ||
+      aiResponse.match(/\{[\s\S]*\}/);
+
+    if (jsonMatch) {
+      const jsonString = jsonMatch[1] || jsonMatch[0];
+      try {
+        jsonData = JSON.parse(jsonString);
+      } catch (e) {
+        try {
+          jsonData = JSON.parse(aiResponse);
+        } catch (e2) {
+          console.error('Failed to parse AI enrichment response:', e2);
+          return createFallbackEnrichment(sensorValue, estimatedAQI);
+        }
+      }
+    } else {
+      try {
+        jsonData = JSON.parse(aiResponse);
+      } catch (e) {
+        console.error('Failed to parse AI enrichment response:', e);
+        return createFallbackEnrichment(sensorValue, estimatedAQI);
+      }
+    }
+
+    // Validate and return enriched data
+    return {
+      aqi: jsonData.aqi || estimatedAQI,
+      pm25: jsonData.pm25 || null,
+      pm10: jsonData.pm10 || null,
+      co: jsonData.co || null,
+      no2: jsonData.no2 || null,
+      so2: jsonData.so2 || null,
+      o3: jsonData.o3 || null,
+      temp: jsonData.temp || null,
+      humidity: jsonData.humidity || null,
+      wind: jsonData.wind || null,
+      forecast_next_hour: jsonData.forecast_next_hour || null,
+    };
+  } catch (error) {
+    console.error('Error enriching sensor data with AI:', error);
+    return createFallbackEnrichment(sensorValue, estimatedAQI);
+  }
+}
+
+/**
+ * Build prompt for sensor data enrichment
+ */
+function buildSensorEnrichmentPrompt(sensorValue, aqiCategory, estimatedAQI) {
+  return `You are an environmental expert. I have a raw MQ135 air quality sensor reading that needs to be converted into detailed pollutant and weather data.
+
+CRITICAL CONTEXT:
+- This is a RAW MQ135 sensor reading (NOT AQI)
+- Sensor value: ${sensorValue}
+- Sensor value thresholds:
+  * ≤350 = Good air quality
+  * ≤800 = Moderate air quality
+  * >800 = Hazard air quality
+- Current category: ${aqiCategory}
+- Estimated AQI: ${estimatedAQI}
+
+TASK:
+Based on this raw sensor reading, generate realistic pollutant concentrations, weather data, and forecast. The values should be proportional to the sensor reading and air quality category.
+
+REQUIREMENTS:
+1. Calculate AQI from sensor value (should be between ${estimatedAQI - 10} and ${estimatedAQI + 10} range)
+2. Generate realistic pollutant values in μg/m³:
+   - PM2.5: Based on sensor reading and AQI category
+   - PM10: Typically 1.5-2x PM2.5
+   - CO: Carbon monoxide in μg/m³ (typical range: 1000-10000 for urban areas)
+   - NO₂: Nitrogen dioxide in μg/m³ (typical range: 20-200)
+   - SO₂: Sulfur dioxide in μg/m³ (typical range: 5-100)
+   - O₃: Ozone in μg/m³ (typical range: 20-200)
+3. Generate realistic weather data:
+   - Temperature: °C (typical urban: 15-35°C)
+   - Humidity: % (typical: 30-90%)
+   - Wind Speed: m/s (typical: 0.5-10 m/s)
+4. Forecast next hour AQI: Should be similar to current AQI with slight variation (±5-15)
+
+VALUES MUST BE PROPORTIONAL:
+- Good (sensor ≤350): Lower pollutant values, moderate weather
+- Moderate (sensor ≤800): Medium pollutant values, typical urban weather
+- Hazard (sensor >800): Higher pollutant values, potentially stagnant weather
+
+Return ONLY valid JSON in this exact format (no markdown, no code blocks, no explanations):
+{
+  "aqi": ${estimatedAQI},
+  "pm25": <number in μg/m³>,
+  "pm10": <number in μg/m³>,
+  "co": <number in μg/m³>,
+  "no2": <number in μg/m³>,
+  "so2": <number in μg/m³>,
+  "o3": <number in μg/m³>,
+  "temp": <number in °C>,
+  "humidity": <number as percentage>,
+  "wind": <number in m/s>,
+  "forecast_next_hour": <number as AQI>
+}`;
+}
+
+/**
+ * Create fallback enrichment data when AI fails
+ */
+function createFallbackEnrichment(sensorValue, estimatedAQI) {
+  // Determine category
+  let pm25, pm10, co, no2, so2, o3, temp, humidity, wind;
+  
+  if (sensorValue <= 350) {
+    // Good
+    pm25 = 15 + Math.random() * 20; // 15-35
+    pm10 = pm25 * 1.8;
+    co = 1500 + Math.random() * 2000; // 1500-3500
+    no2 = 30 + Math.random() * 40; // 30-70
+    so2 = 10 + Math.random() * 20; // 10-30
+    o3 = 40 + Math.random() * 40; // 40-80
+    temp = 20 + Math.random() * 10; // 20-30
+    humidity = 50 + Math.random() * 30; // 50-80
+    wind = 2 + Math.random() * 3; // 2-5
+  } else if (sensorValue <= 800) {
+    // Moderate
+    pm25 = 35 + Math.random() * 40; // 35-75
+    pm10 = pm25 * 1.8;
+    co = 3500 + Math.random() * 3000; // 3500-6500
+    no2 = 70 + Math.random() * 60; // 70-130
+    so2 = 30 + Math.random() * 30; // 30-60
+    o3 = 80 + Math.random() * 60; // 80-140
+    temp = 25 + Math.random() * 8; // 25-33
+    humidity = 60 + Math.random() * 25; // 60-85
+    wind = 1.5 + Math.random() * 2.5; // 1.5-4
+  } else {
+    // Hazard
+    pm25 = 75 + Math.random() * 75; // 75-150
+    pm10 = pm25 * 1.8;
+    co = 6500 + Math.random() * 3500; // 6500-10000
+    no2 = 130 + Math.random() * 70; // 130-200
+    so2 = 60 + Math.random() * 40; // 60-100
+    o3 = 140 + Math.random() * 60; // 140-200
+    temp = 28 + Math.random() * 7; // 28-35
+    humidity = 70 + Math.random() * 20; // 70-90
+    wind = 0.5 + Math.random() * 1.5; // 0.5-2
+  }
+
+  return {
+    aqi: estimatedAQI,
+    pm25: Math.round(pm25),
+    pm10: Math.round(pm10),
+    co: Math.round(co),
+    no2: Math.round(no2),
+    so2: Math.round(so2),
+    o3: Math.round(o3),
+    temp: Math.round(temp * 10) / 10,
+    humidity: Math.round(humidity),
+    wind: Math.round(wind * 10) / 10,
+    forecast_next_hour: Math.max(0, Math.round(estimatedAQI + (Math.random() - 0.5) * 20)),
+  };
 }
 
 /**

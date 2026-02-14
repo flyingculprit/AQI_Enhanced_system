@@ -5,7 +5,7 @@ import Loader from './Loader';
 import ErrorBox from './ErrorBox';
 import AQIPredictionGraph from './AQIPredictionGraph';
 
-function TreeRecommendations({ aqiData, enabled }) {
+function TreeRecommendations({ aqiData, enabled, mode = 'manual' }) {
   const [recommendations, setRecommendations] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -16,7 +16,7 @@ function TreeRecommendations({ aqiData, enabled }) {
     // Only fetch if enabled, has data, and hasn't been fetched for this data yet
     if (enabled && aqiData && aqiData.aqi !== null) {
       // Check if this is new data (different city or AQI changed significantly)
-      const dataKey = `${aqiData.city}-${aqiData.aqi}`;
+      const dataKey = `${aqiData.city}-${aqiData.aqi}-${mode}`;
       if (lastAqiDataRef.current !== dataKey) {
         hasFetchedRef.current = false;
         lastAqiDataRef.current = dataKey;
@@ -31,7 +31,7 @@ function TreeRecommendations({ aqiData, enabled }) {
           setRecommendations(null);
 
           try {
-            const data = await getTreePlantingRecommendations(aqiData);
+            const data = await getTreePlantingRecommendations(aqiData, mode);
             setRecommendations(data);
           } catch (err) {
             setError(err.message || 'Failed to fetch AI recommendations');
@@ -49,7 +49,7 @@ function TreeRecommendations({ aqiData, enabled }) {
       lastAqiDataRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aqiData?.city, aqiData?.aqi, enabled]);
+  }, [aqiData?.city, aqiData?.aqi, enabled, mode]);
 
   const fetchRecommendations = async () => {
     hasFetchedRef.current = false;
@@ -58,7 +58,7 @@ function TreeRecommendations({ aqiData, enabled }) {
     setRecommendations(null);
 
     try {
-      const data = await getTreePlantingRecommendations(aqiData);
+      const data = await getTreePlantingRecommendations(aqiData, mode);
       setRecommendations(data);
       hasFetchedRef.current = true;
     } catch (err) {

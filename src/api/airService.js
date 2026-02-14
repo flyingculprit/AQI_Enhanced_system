@@ -3,6 +3,7 @@
  * Fetches data from AQICN and OpenWeather APIs and merges them
  */
 
+import { enrichSensorDataWithAI } from './aiService.js';
 const AQICN_BASE = 'https://api.waqi.info';
 const AQICN_FEED = 'https://api.waqi.info/feed';
 const OWM_BASE = 'https://api.openweathermap.org/data/2.5';
@@ -199,3 +200,75 @@ export async function searchStations(keyword) {
   }
 }
 
+/**
+ * Get live AQI data from MQ135 sensor via ESP32
+ * @returns {Promise<Object>} Sensor AQI data in compatible format
+ */
+export async function getLiveSensorData() {
+  // Read ESP32 IP from localStorage, fallback to default
+  const esp32Ip = localStorage.getItem('ESP32_IP_ADDRESS') || '10.34.122.160';
+  
+  try {
+    const sensorUrl = `http://${esp32Ip}/aqi-data`;
+    const response = await fetch(sensorUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sensor data: ${response.status} ${response.statusText}`);
+    }
+    
+    const sensorData = await response.json();
+    
+    // Validate response structure
+    if (!sensorData || typeof sensorData.aqiValue === 'undefined') {
+      throw new Error('Invalid sensor data format. Expected {aqiValue: number}');
+    }
+    
+    // Note: sensorData.aqiValue is actually a raw MQ135 sensor reading, not AQI
+    const rawSensorValue = sensorData.aqiValue;
+    
+    // Base data structure
+    const baseData = {
+      city: 'Live Sensor Location',
+      aqi: null, // Will be set by AI enrichment
+      pm25: null,
+      pm10: null,
+      co: null,
+      no2: null,
+      so2: null,
+      o3: null,
+      temp: null,
+      humidity: null,
+      wind: null,
+      forecast_next_hour: null,
+      heatmap_tile: null,
+      coordinates: null,
+      isLiveSensor: true, // Flag to identify live sensor data
+    };
+    
+    // Try to enrich sensor data with AI-generated pollutant and weather data
+    try {
+      const enrichedData = await enrichSensorDataWithAI(rawSensorValue);
+      
+      // Merge AI-enriched data with base data
+      return {
+        ...baseData,
+        ...enrichedData,
+      };
+    } catch (aiError) {
+      // If AI enrichment fails, log error but don't block the UI
+      console.error('AI enrichment failed, using sensor value only:', aiError);
+      
+      // Return base data with sensor value as AQI (fallback behavior)
+      return {
+        ...baseData,
+        aqi: rawSensorValue, // Use raw sensor value as AQI fallback
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching live sensor data:', error);
+    if (error.message) {
+      throw error;
+    }
+    throw new Error(`Failed to connect to ESP32 at ${esp32Ip}. Please check the IP address in /setup.`);
+  }
+}

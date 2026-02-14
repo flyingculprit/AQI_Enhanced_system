@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { getAQIData, getMapStations } from '../api/airService';
+import { getTreePlantingRecommendations } from '../api/aiService';
 import Loader from '../components/Loader';
 import ErrorBox from '../components/ErrorBox';
 import TreeRecommendations from '../components/TreeRecommendations';
@@ -66,6 +68,7 @@ function MapSizeFixer() {
 }
 
 function AQIDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [city, setCity] = useState('');
   const [data, setData] = useState(null);
   const [stations, setStations] = useState([]);
@@ -73,6 +76,7 @@ function AQIDashboard() {
   const [loadingStations, setLoadingStations] = useState(false);
   const [error, setError] = useState(null);
   const [enhancedPrediction, setEnhancedPrediction] = useState(false);
+
 
   const handleSearch = async () => {
     if (!city.trim()) {
@@ -99,6 +103,7 @@ function AQIDashboard() {
       setLoading(false);
     }
   };
+
 
   const fetchNearbyStations = async (centerLat, centerLon) => {
     // Calculate bounds around the center point (approximately 0.5 degree radius)
@@ -182,7 +187,7 @@ function AQIDashboard() {
         {/* Search Section */}
         <div className="max-w-2xl mx-auto mb-8">
           <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
-            <div className="flex gap-4 items-center">
+            <div className="flex gap-4 items-center mb-4">
               <input
                 type="text"
                 value={city}
@@ -340,8 +345,8 @@ function AQIDashboard() {
               </div>
             </div>
 
-            {/* Map Section */}
-            {data.coordinates && data.coordinates.lat && data.coordinates.lon && (
+            {/* Map Section - Only show for manual location data (not live sensor) */}
+            {!data.isLiveSensor && data.coordinates && data.coordinates.lat && data.coordinates.lon && (
               <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">
@@ -433,7 +438,11 @@ function AQIDashboard() {
             )}
 
             {/* AI Tree Planting Recommendations */}
-            <TreeRecommendations aqiData={data} enabled={enhancedPrediction} />
+            <TreeRecommendations 
+              aqiData={data} 
+              enabled={enhancedPrediction} 
+              mode="manual"
+            />
           </div>
         )}
       </div>
